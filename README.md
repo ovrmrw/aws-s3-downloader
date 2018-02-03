@@ -23,4 +23,12 @@ const downloader = new Downloader();
 downloader.download(bucket, prefix, regexp);
 ```
 
-then `$ node build/index.js <Bucket name> <Prefix> <regular-expression string>`
+then 
+
+```
+$ node index.js <Bucket name *1> <Prefix *2> <regular-expression string *3>
+```
+
+*1 ... full Bucket name.
+*2 ... Prefix of Key name.
+*3 ... regular-expression string for filtering.
