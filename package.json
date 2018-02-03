@@ -1,0 +1,39 @@
+{
+  "name": "s3-bulk-downloader",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rm -rf downloads merged dist",
+    "tsc": "tsc",
+    "tsc:w": "tsc --watch",
+    "build": "npm run clean && npm run tsc",
+    "build:w": "npm run clean && npm run tsc:w",
+    "start": "npm run bs",
+    "ts": "ts-node",
+    "bs": "npm run build && node dist/index.js",
+    "prepublish": "npm run build"
+  },
+  "keywords": [
+    "aws",
+    "s3",
+    "download"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ovrmrw/s3-bulk-downloader"
+  },
+  "author": "Tomohiro Noguchi",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/lodash": "^4.14.77",
+    "@types/node": "^8.0.33",
+    "ts-node": "^3.3.0",
+    "tslint": "^5.7.0",
+    "typescript": "^2.5.3"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.188.0",
+    "lodash": "^4.17.4"
+  }
+}
