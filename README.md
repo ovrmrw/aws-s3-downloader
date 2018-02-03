@@ -20,7 +20,7 @@ import { Downloader } from 's3-bulk-downloader';
 
 const [, , bucket, prefix, regexp] = process.argv;
 const downloader = new Downloader();
-downloader.download(bucket, prefix, regexp);
+downloader.download({ bucket, prefix, regexp });
 ```
 
 then 
