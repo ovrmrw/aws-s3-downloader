@@ -1,6 +1,7 @@
 import { Downloader } from './downloader';
+import { Options } from './type';
 
-export { Downloader };
+export { Downloader, Options };
 
 // const [, , bucket, prefix, regexp] = process.argv;
 // const downloader = new Downloader();
