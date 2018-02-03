@@ -24,7 +24,13 @@ export class Downloader {
     this.downloadsDirpath = makeDir('downloads');
   }
 
-  download(bucket: string | undefined, prefix: string | undefined, regexp: string | undefined): Promise<void> {
+  /**
+   * Download log files from your S3 Buckets.
+   * @param bucket Bucket name
+   * @param prefix Prefix of Key
+   * @param regexp regular-expression string for filrtering Keys
+   */
+  download(bucket: string, prefix: string, regexp?: string): Promise<void> {
     console.log('download:', { bucket, prefix, regexp });
     const options: ListObjectsRequest = {
       Bucket: bucket || '',
