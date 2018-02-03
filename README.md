@@ -25,10 +25,8 @@ downloader.download(bucket, prefix, regexp);
 
 then 
 
-```
-$ node index.js <Bucket name *1> <Prefix *2> <regular-expression string *3>
-```
+`$ node index.js <Bucket name *1> <Prefix *2> <regular-expression string *3>`
 
-*1 ... full Bucket name.
-*2 ... Prefix of Key name.
-*3 ... regular-expression string for filtering.
+- *1 ... full Bucket name.
+- *2 ... Prefix of Key name.
+- *3 ... regular-expression string for filtering.
