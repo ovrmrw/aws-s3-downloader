@@ -1,6 +1,6 @@
 {
   "name": "s3-bulk-downloader",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -25,9 +25,7 @@
     "index.js",
     "index.d.ts",
     "package.json",
-    "README.md",
-    "tsconfig.json",
-    "tslint.json"
+    "README.md"
   ],
   "repository": {
     "type": "git",
