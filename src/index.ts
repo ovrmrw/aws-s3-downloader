@@ -1,8 +1,10 @@
-import { Downloader } from './downloader';
-import { Options } from './type';
+import { Downloader, DownloadResult } from './downloader';
+import { Options } from './types';
 
-export { Downloader, Options };
+export { Downloader, DownloadResult, Options };
 
 // const [, , bucket, prefix, regexp] = process.argv;
 // const downloader = new Downloader();
-// downloader.download({ bucket, prefix, regexp, filename: 'merged.txt' });
+// downloader.download({ bucket, prefix, regexp, filename: 'merged.txt' })
+//   .then(result => console.log(result))
+//   .catch(console.error);

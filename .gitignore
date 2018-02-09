@@ -40,4 +40,5 @@ jspm_packages
 .dest*
 dist/
 downloads*/
+downloaded*/
 merged*/

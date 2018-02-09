@@ -1,34 +1,46 @@
 import * as fs from 'fs';
 import { WriteStream } from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 import * as AWS from 'aws-sdk';
 import { S3 } from 'aws-sdk';
 import * as lodash from 'lodash';
-import { ListObjectsOutput, ListObjectsRequest, Options } from './type';
+import { ListObjectsOutput, ListObjectsRequest, Options } from './types';
 import { makeDir } from './helpers';
+import { getConfig } from './config';
 
-AWS.config.loadFromPath(path.join(os.homedir(), '.aws', 'nodejs', 'config.json'));
-const s3 = new S3();
+export interface DownloadResult {
+  downloaded: string[];
+  merged: string;
+}
 
 export class Downloader {
+  private s3: S3;
   private mergedDirpath: string;
-  private downloadsDirpath: string;
+  private downloadedDirpath: string;
   private ws1: WriteStream | null = null;
   private regexp: RegExp | null = null;
   private keyCounter: number = 0;
   private filteredKeyCounter: number = 0;
 
-  constructor() {
+  constructor(accountName?: string) {
+    this.s3 = this.initializeSDK(accountName);
     this.mergedDirpath = makeDir('merged');
-    this.downloadsDirpath = makeDir('downloads');
+    this.downloadedDirpath = makeDir('downloaded');
+  }
+
+  private initializeSDK(accountName?: string): S3 {
+    const config = getConfig(accountName);
+    AWS.config.accessKeyId = config.accessKeyId;
+    AWS.config.secretAccessKey = config.secretAccessKey;
+    AWS.config.region = config.region;
+    return new S3();
   }
 
   /**
    * Download log files from your S3 Buckets.
    * @param options
    */
-  download(options: Options): Promise<void> {
+  download(options: Options): Promise<DownloadResult> {
     console.log('download options:', options);
     const params: ListObjectsRequest = {
       Bucket: options.bucket || '',
@@ -41,68 +53,71 @@ export class Downloader {
         ? `${filenamePrefix}_${options.filename}`
         : `${filenamePrefix}_${options.filename}.txt`
       : `${filenamePrefix}_${Date.now()}.txt`;
-    this.ws1 = fs.createWriteStream(path.join(this.mergedDirpath, filename));
+    const mergedFilepath = path.join(this.mergedDirpath, filename);
+    this.ws1 = fs.createWriteStream(mergedFilepath);
     this.ws1.on('close', () => console.log('write-stream is closed.'));
     this.keyCounter = 0;
     this.filteredKeyCounter = 0;
     return this.listObjects(params)
-      .then(() => {
+      .then(filepaths => {
         if (this.ws1) {
           this.ws1.end();
         }
         console.log('total key count:', this.keyCounter);
         console.log('total filtered-key count:', this.filteredKeyCounter);
+        return { downloaded: filepaths || [], merged: mergedFilepath || '' };
       });
   }
 
-  private listObjects(params: ListObjectsRequest, nextToken?: string): Promise<void> {
+  private listObjects(params: ListObjectsRequest, nextToken?: string): Promise<string[] | void> {
     return new Promise((resolve, reject) => {
       const _params: ListObjectsRequest = nextToken
         ? { ...params, ContinuationToken: nextToken }
         : params;
       console.log('listObjects params:', _params);
-      s3.listObjectsV2(_params, (err, data) => {
+      this.s3.listObjectsV2(_params, (err, data) => {
         if (err) {
           reject(err);
           return;
         }
         this.writeFile(data, params)
-          .then(() => {
+          .then(filepaths => {
             if (data.NextContinuationToken) {
               this.listObjects(params, data.NextContinuationToken)
-                .then(() => resolve());
+                .then(() => resolve(filepaths));
             } else {
-              resolve();
+              resolve(filepaths);
             }
           });
       });
     });
   }
 
-  private writeFile(data: ListObjectsOutput, params: ListObjectsRequest): Promise<void> {
+  private writeFile(data: ListObjectsOutput, params: ListObjectsRequest): Promise<string[] | void> {
     this.keyCounter += data.KeyCount || 0;
     const contents = data.Contents && data.Contents.length > 0
       ? lodash.orderBy(data.Contents.filter(content => content.Key), 'Key')
       : [];
     if (contents && contents.length > 0) {
       const promises = contents.map((content, index) => {
-        return new Promise((resolve, reject) => {
+        return new Promise<string>((resolve, reject) => {
           const shouldWrite: boolean = !!content.Key &&
             (!this.regexp || (this.regexp && this.regexp.test(content.Key)));
           if (shouldWrite) {
             this.filteredKeyCounter++;
-            s3.getObject({ Bucket: params.Bucket, Key: content.Key! }, (err, data) => {
+            this.s3.getObject({ Bucket: params.Bucket, Key: content.Key! }, (err, data) => {
               if (err) {
                 reject(err);
                 return;
               }
               const filename = params.Bucket + '_' + content.Key!.replace(/\//g, '_');
-              const ws2 = fs.createWriteStream(path.join(this.downloadsDirpath, filename));
+              const downloadedFilepath = path.join(this.downloadedDirpath, filename);
+              const ws2 = fs.createWriteStream(downloadedFilepath);
               ws2.write(data.Body);
               if (this.ws1) {
                 this.ws1.write(data.Body);
               }
-              resolve();
+              resolve(downloadedFilepath);
             });
           } else {
             resolve();
@@ -110,8 +125,7 @@ export class Downloader {
         });
       });
       return Promise.all(promises)
-        .then(() => void 0)
-        .catch(err => { throw err; });
+        .then(filepaths => filepaths.filter(path => !!path));
     } else {
       return Promise.resolve();
     }
