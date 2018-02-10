@@ -1,4 +1,4 @@
-# aws-s3-downloader
+# s3-bulk-downloader
 For download tons of log files stored in your S3 Buckets.
 
 ---
