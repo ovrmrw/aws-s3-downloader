@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as AWS from 'aws-sdk';
 import { S3 } from 'aws-sdk';
 import * as lodash from 'lodash';
+import { LineStream } from 'byline';
 import { ListObjectsOutput, ListObjectsRequest, Options } from './types';
 import { makeDir } from './helpers';
 import { getConfig } from './config';
@@ -55,7 +56,7 @@ export class Downloader {
       : `${filenamePrefix}_${Date.now()}.txt`;
     const mergedFilepath = path.join(this.mergedDirpath, filename);
     this.ws1 = fs.createWriteStream(mergedFilepath);
-    this.ws1.on('close', () => console.log('write-stream is closed.'));
+    this.ws1.on('finish', () => console.log('write-stream is finished.'));
     this.keyCounter = 0;
     this.filteredKeyCounter = 0;
     return this.listObjects(params)
@@ -105,18 +106,24 @@ export class Downloader {
             (!this.regexp || (this.regexp && this.regexp.test(content.Key)));
           if (shouldWrite) {
             this.filteredKeyCounter++;
-            this.s3.getObject({ Bucket: params.Bucket, Key: content.Key! }, (err, data) => {
-              if (err) {
-                reject(err);
-                return;
-              }
-              const filename = params.Bucket + '_' + content.Key!.replace(/\//g, '_');
-              const downloadedFilepath = path.join(this.downloadedDirpath, filename);
-              const ws2 = fs.createWriteStream(downloadedFilepath);
-              ws2.write(data.Body);
+            const filename = params.Bucket + '_' + content.Key!.replace(/\//g, '_');
+            const downloadedFilepath = path.join(this.downloadedDirpath, filename);
+            const ws2 = fs.createWriteStream(downloadedFilepath);
+            const lineStream = new LineStream();
+            const rs = this.s3.getObject({ Bucket: params.Bucket, Key: content.Key! }).createReadStream().pipe(lineStream);
+            rs.on('data', chunk => {
+              const line = chunk + '\n';
               if (this.ws1) {
-                this.ws1.write(data.Body);
+                this.ws1.write(line);
               }
+              if (!ws2.write(line)) {
+                rs.pause();
+                ws2.once('drain', () => rs.resume());
+              }
+            });
+            rs.on('error', reject);
+            rs.on('end', () => {
+              ws2.end();
               resolve(downloadedFilepath);
             });
           } else {

@@ -1,6 +1,6 @@
 {
   "name": "s3-bulk-downloader",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -34,6 +34,7 @@
   "author": "Tomohiro Noguchi",
   "license": "MIT",
   "devDependencies": {
+    "@types/byline": "^4.2.31",
     "@types/lodash": "^4.14.77",
     "@types/node": "^8.0.33",
     "ts-node": "^3.3.0",
@@ -42,6 +43,7 @@
   },
   "dependencies": {
     "aws-sdk": "^2.188.0",
+    "byline": "^5.0.0",
     "lodash": "^4.17.4"
   }
 }
