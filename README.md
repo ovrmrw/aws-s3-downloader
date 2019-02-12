@@ -3,10 +3,6 @@ For download tons of log files stored in your S3 Buckets.
 
 ---
 
-## Prepare
-
-Create `{HOME_DIR}/.aws/nodejs/config.json` file for your environment. (ref: https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/loading-node-credentials-json-file.html )
-
 ## Install
 
 ```
@@ -19,7 +15,7 @@ $ npm install s3-bulk-downloader
 import { Downloader } from 's3-bulk-downloader';
 
 const [, , bucket, prefix, regexp] = process.argv;
-const downloader = new Downloader();
+const downloader = new Downloader({ profileName: 'foo' });
 downloader.download({ bucket, prefix, regexp })
   .then(result => {
     console.log(result.downloaded); // array of downloaded filepaths.
@@ -27,7 +23,7 @@ downloader.download({ bucket, prefix, regexp })
   });
 ```
 
-then 
+then
 
 `$ node index.js <Bucket name *1> <Prefix *2> <regular-expression string *3>`
 

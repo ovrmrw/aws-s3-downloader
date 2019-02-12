@@ -1,6 +1,6 @@
 {
   "name": "s3-bulk-downloader",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -42,8 +42,8 @@
     "typescript": "^2.5.3"
   },
   "dependencies": {
-    "aws-sdk": "^2.188.0",
+    "aws-sdk": "^2.401.0",
     "byline": "^5.0.0",
-    "lodash": "^4.17.4"
+    "lodash": "^4.17.11"
   }
 }

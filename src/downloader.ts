@@ -7,7 +7,6 @@ import * as lodash from 'lodash';
 import { LineStream } from 'byline';
 import { ListObjectsOutput, ListObjectsRequest, Options } from './types';
 import { makeDir } from './helpers';
-import { getConfig } from './config';
 
 export interface DownloadResult {
   downloaded: string[];
@@ -23,17 +22,19 @@ export class Downloader {
   private keyCounter: number = 0;
   private filteredKeyCounter: number = 0;
 
-  constructor(accountName?: string) {
-    this.s3 = this.initializeSDK(accountName);
+  constructor(args: { profileName?: string } = {}) {
+    this.s3 = this.initializeSDK(args.profileName);
     this.mergedDirpath = makeDir('merged');
     this.downloadedDirpath = makeDir('downloaded');
   }
 
-  private initializeSDK(accountName?: string): S3 {
-    const config = getConfig(accountName);
-    AWS.config.accessKeyId = config.accessKeyId;
-    AWS.config.secretAccessKey = config.secretAccessKey;
-    AWS.config.region = config.region;
+  private initializeSDK(profileName?: string): S3 {
+    if (profileName) {
+      const credentials = new AWS.SharedIniFileCredentials({
+        profile: profileName
+      });
+      AWS.config.credentials = credentials;
+    }
     return new S3();
   }
 
@@ -45,10 +46,13 @@ export class Downloader {
     console.log('download options:', options);
     const params: ListObjectsRequest = {
       Bucket: options.bucket || '',
-      Prefix: options.prefix || '',
+      Prefix: options.prefix || ''
     };
     this.regexp = options.regexp ? new RegExp(options.regexp) : null;
-    const filenamePrefix = `${options.bucket}_${options.prefix.replace(/\//g, '_')}`;
+    const filenamePrefix = `${options.bucket}_${options.prefix.replace(
+      /\//g,
+      '_'
+    )}`;
     const filename = options.filename
       ? options.filename.indexOf('.') > -1
         ? `${filenamePrefix}_${options.filename}`
@@ -59,18 +63,20 @@ export class Downloader {
     this.ws1.on('finish', () => console.log('write-stream is finished.'));
     this.keyCounter = 0;
     this.filteredKeyCounter = 0;
-    return this.listObjects(params)
-      .then(filepaths => {
-        if (this.ws1) {
-          this.ws1.end();
-        }
-        console.log('total key count:', this.keyCounter);
-        console.log('total filtered-key count:', this.filteredKeyCounter);
-        return { downloaded: filepaths || [], merged: mergedFilepath || '' };
-      });
+    return this.listObjects(params).then(filepaths => {
+      if (this.ws1) {
+        this.ws1.end();
+      }
+      console.log('total key count:', this.keyCounter);
+      console.log('total filtered-key count:', this.filteredKeyCounter);
+      return { downloaded: filepaths || [], merged: mergedFilepath || '' };
+    });
   }
 
-  private listObjects(params: ListObjectsRequest, nextToken?: string): Promise<string[] | void> {
+  private listObjects(
+    params: ListObjectsRequest,
+    nextToken?: string
+  ): Promise<string[] | void> {
     return new Promise((resolve, reject) => {
       const _params: ListObjectsRequest = nextToken
         ? { ...params, ContinuationToken: nextToken }
@@ -81,36 +87,48 @@ export class Downloader {
           reject(err);
           return;
         }
-        this.writeFile(data, params)
-          .then(filepaths => {
-            if (data.NextContinuationToken) {
-              this.listObjects(params, data.NextContinuationToken)
-                .then(() => resolve(filepaths));
-            } else {
-              resolve(filepaths);
-            }
-          });
+        this.writeFile(data, params).then(filepaths => {
+          if (data.NextContinuationToken) {
+            this.listObjects(params, data.NextContinuationToken).then(() =>
+              resolve(filepaths)
+            );
+          } else {
+            resolve(filepaths);
+          }
+        });
       });
     });
   }
 
-  private writeFile(data: ListObjectsOutput, params: ListObjectsRequest): Promise<string[] | void> {
+  private writeFile(
+    data: ListObjectsOutput,
+    params: ListObjectsRequest
+  ): Promise<string[] | void> {
     this.keyCounter += data.KeyCount || 0;
-    const contents = data.Contents && data.Contents.length > 0
-      ? lodash.orderBy(data.Contents.filter(content => content.Key), 'Key')
-      : [];
+    const contents =
+      data.Contents && data.Contents.length > 0
+        ? lodash.orderBy(data.Contents.filter(content => content.Key), 'Key')
+        : [];
     if (contents && contents.length > 0) {
       const promises = contents.map((content, index) => {
         return new Promise<string>((resolve, reject) => {
-          const shouldWrite: boolean = !!content.Key &&
+          const shouldWrite: boolean =
+            !!content.Key &&
             (!this.regexp || (this.regexp && this.regexp.test(content.Key)));
           if (shouldWrite) {
             this.filteredKeyCounter++;
-            const filename = params.Bucket + '_' + content.Key!.replace(/\//g, '_');
-            const downloadedFilepath = path.join(this.downloadedDirpath, filename);
+            const filename =
+              params.Bucket + '_' + content.Key!.replace(/\//g, '_');
+            const downloadedFilepath = path.join(
+              this.downloadedDirpath,
+              filename
+            );
             const ws2 = fs.createWriteStream(downloadedFilepath);
             const lineStream = new LineStream();
-            const rs = this.s3.getObject({ Bucket: params.Bucket, Key: content.Key! }).createReadStream().pipe(lineStream);
+            const rs = this.s3
+              .getObject({ Bucket: params.Bucket, Key: content.Key! })
+              .createReadStream()
+              .pipe(lineStream);
             rs.on('data', chunk => {
               const line = chunk + '\n';
               if (this.ws1) {
@@ -131,11 +149,11 @@ export class Downloader {
           }
         });
       });
-      return Promise.all(promises)
-        .then(filepaths => filepaths.filter(path => !!path));
+      return Promise.all(promises).then(filepaths =>
+        filepaths.filter(path => !!path)
+      );
     } else {
       return Promise.resolve();
     }
   }
-
 }
